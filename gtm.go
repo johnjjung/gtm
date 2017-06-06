@@ -288,7 +288,6 @@ func (this *Op) ParseLogEntry(entry OpLogEntry, options *Options) (include bool)
 			if options.UpdateDataAsDelta || UpdateIsReplace(changeField) {
 				this.UpdateData = changeField
 			}
-			this.Data = objectField
 		}
 		include = true
 	} else if this.IsCommand() {
