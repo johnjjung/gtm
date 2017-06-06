@@ -46,12 +46,13 @@ type Options struct {
 }
 
 type Op struct {
-	Id        interface{}            `json:"_id"`
-	Operation string                 `json:"operation"`
-	Namespace string                 `json:"namespace"`
-	Data      map[string]interface{} `json:"data"`
-	Timestamp bson.MongoTimestamp    `json:"timestamp"`
-	Source    QuerySource            `json:"source"`
+	Id         interface{}            `json:"_id"`
+	Operation  string                 `json:"operation"`
+	Namespace  string                 `json:"namespace"`
+	Data       map[string]interface{} `json:"data"`
+	UpdateData map[string]interface{} `json:"data"`
+	Timestamp  bson.MongoTimestamp    `json:"timestamp"`
+	Source     QuerySource            `json:"source"`
 }
 
 type OpLog struct {
@@ -285,7 +286,7 @@ func (this *Op) ParseLogEntry(entry OpLogEntry, options *Options) (include bool)
 		} else if this.IsUpdate() {
 			var changeField = entry["o"].(OpLogEntry)
 			if options.UpdateDataAsDelta || UpdateIsReplace(changeField) {
-				this.Data = changeField
+				this.UpdateData = changeField
 			}
 		}
 		include = true
@@ -311,14 +312,14 @@ func OpLogCollectionName(session *mgo.Session, options *Options) string {
 		}
 		if col_name == nil {
 			msg := fmt.Sprintf(`
-				Unable to find oplog collection 
+				Unable to find oplog collection
 				in database %v`, *options.OpLogDatabaseName)
 			panic(msg)
 		} else {
 			return *col_name
 		}
 	} else {
-		msg := fmt.Sprintf(`Unable to get collection names 
+		msg := fmt.Sprintf(`Unable to get collection names
 		for database %v: %s`, *options.OpLogDatabaseName, err)
 		panic(msg)
 	}
