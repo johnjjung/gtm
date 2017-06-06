@@ -46,8 +46,7 @@ type Options struct {
 }
 
 type Op struct {
-	Id        interface{}            `json:"_id"`
-	Guid      string                 `json:"id"`
+	Id        string                 `json:"id"`
 	Operation string                 `json:"operation"`
 	Namespace string                 `json:"namespace"`
 	Data      map[string]interface{} `json:"data"`
@@ -228,12 +227,12 @@ func (this *OpBuf) Flush(session *mgo.Session, ctx *OpCtx) {
 		var parts = strings.SplitN(n, ".", 2)
 		var results []map[string]interface{}
 		db, col := parts[0], parts[1]
-		sel := bson.M{"_id": bson.M{"$in": opIds}}
+		sel := bson.M{"id": bson.M{"$in": opIds}}
 		collection := session.DB(db).C(col)
 		err := collection.Find(sel).All(&results)
 		if err == nil {
 			for _, result := range results {
-				resultId := fmt.Sprintf("%s.%v", n, result["_id"])
+				resultId := fmt.Sprintf("%s.%v", n, result["id"])
 				if ops, ok := byId[resultId]; ok {
 					if len(ops) == 1 {
 						ops[0].Data = result
@@ -280,7 +279,7 @@ func (this *Op) ParseLogEntry(entry OpLogEntry, options *Options) (include bool)
 		} else {
 			objectField = entry["o"].(OpLogEntry)
 		}
-		this.Id = objectField["_id"]
+		this.Id = objectField["id"]
 		if this.IsInsert() {
 			this.Data = objectField
 		} else if this.IsUpdate() {
@@ -445,7 +444,7 @@ func DirectRead(ctx *OpCtx, session *mgo.Session, idx int, ns string, options *O
 	}
 	db, col := dbCol[0], dbCol[1]
 	c := s.DB(db).C(col)
-	q := c.Find(nil).Limit(limit).Sort("_id").Hint("_id").Batch(options.DirectReadBatchSize)
+	q := c.Find(nil).Limit(limit).Sort("id").Hint("id").Batch(options.DirectReadBatchSize)
 	for {
 		q.Skip(skip)
 		iter := q.Iter()
@@ -458,7 +457,7 @@ func DirectRead(ctx *OpCtx, session *mgo.Session, idx int, ns string, options *O
 		result := make(map[string]interface{})
 		for iter.Next(&result) {
 			op := &Op{
-				Id:        result["_id"],
+				Id:        result["id"],
 				Operation: "i",
 				Namespace: ns,
 				Data:      result,
