@@ -377,6 +377,10 @@ func TailOps(ctx *OpCtx, session *mgo.Session, channels []OpChan, options *Optio
 				if options.Filter == nil || options.Filter(op) {
 					if options.UpdateDataAsDelta {
 						ctx.OpC <- op
+
+						for _, channel := range channels {
+							channel <- op
+						}
 					} else {
 						// broadcast to fetch channels
 						for _, channel := range channels {
