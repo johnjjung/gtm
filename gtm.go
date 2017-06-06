@@ -46,12 +46,13 @@ type Options struct {
 }
 
 type Op struct {
-	Id        interface{}            `json:"id"`
-	Operation string                 `json:"operation"`
-	Namespace string                 `json:"namespace"`
-	Data      map[string]interface{} `json:"data"`
-	Timestamp bson.MongoTimestamp    `json:"timestamp"`
-	Source    QuerySource            `json:"source"`
+	Id         interface{}            `json:"_id"`
+	Operation  string                 `json:"operation"`
+	Namespace  string                 `json:"namespace"`
+	Data       map[string]interface{} `json:"data"`
+	UpdateData map[string]interface{} `json:"data"`
+	Timestamp  bson.MongoTimestamp    `json:"timestamp"`
+	Source     QuerySource            `json:"source"`
 }
 
 type OpLog struct {
@@ -227,12 +228,12 @@ func (this *OpBuf) Flush(session *mgo.Session, ctx *OpCtx) {
 		var parts = strings.SplitN(n, ".", 2)
 		var results []map[string]interface{}
 		db, col := parts[0], parts[1]
-		sel := bson.M{"id": bson.M{"$in": opIds}}
+		sel := bson.M{"_id": bson.M{"$in": opIds}}
 		collection := session.DB(db).C(col)
 		err := collection.Find(sel).All(&results)
 		if err == nil {
 			for _, result := range results {
-				resultId := fmt.Sprintf("%s.%v", n, result["id"])
+				resultId := fmt.Sprintf("%s.%v", n, result["_id"])
 				if ops, ok := byId[resultId]; ok {
 					if len(ops) == 1 {
 						ops[0].Data = result
@@ -279,13 +280,14 @@ func (this *Op) ParseLogEntry(entry OpLogEntry, options *Options) (include bool)
 		} else {
 			objectField = entry["o"].(OpLogEntry)
 		}
-		this.Id = objectField["id"]
+		this.Id = objectField["_id"]
 		if this.IsInsert() {
 			this.Data = objectField
-		} else if this.IsUpdate() {
+		}
+		if this.IsUpdate() {
 			var changeField = entry["o"].(OpLogEntry)
 			if options.UpdateDataAsDelta || UpdateIsReplace(changeField) {
-				this.Data = changeField
+				this.UpdateData = changeField
 			}
 		}
 		include = true
@@ -373,13 +375,17 @@ func TailOps(ctx *OpCtx, session *mgo.Session, channels []OpChan, options *Optio
 			}
 			if op.ParseLogEntry(entry, options) {
 				if options.Filter == nil || options.Filter(op) {
-					if options.UpdateDataAsDelta {
-						ctx.OpC <- op
-					} else {
-						// broadcast to fetch channels
-						for _, channel := range channels {
-							channel <- op
-						}
+					// if options.UpdateDataAsDelta {
+					// 	ctx.OpC <- op
+					// } else {
+					// 	// broadcast to fetch channels
+					// 	for _, channel := range channels {
+					// 		channel <- op
+					// 	}
+					// }
+					// broadcast to fetch channels
+					for _, channel := range channels {
+						channel <- op
 					}
 				}
 			}
@@ -444,7 +450,7 @@ func DirectRead(ctx *OpCtx, session *mgo.Session, idx int, ns string, options *O
 	}
 	db, col := dbCol[0], dbCol[1]
 	c := s.DB(db).C(col)
-	q := c.Find(nil).Limit(limit).Sort("id").Hint("id").Batch(options.DirectReadBatchSize)
+	q := c.Find(nil).Limit(limit).Sort("_id").Hint("_id").Batch(options.DirectReadBatchSize)
 	for {
 		q.Skip(skip)
 		iter := q.Iter()
@@ -457,7 +463,7 @@ func DirectRead(ctx *OpCtx, session *mgo.Session, idx int, ns string, options *O
 		result := make(map[string]interface{})
 		for iter.Next(&result) {
 			op := &Op{
-				Id:        result["id"],
+				Id:        result["_id"],
 				Operation: "i",
 				Namespace: ns,
 				Data:      result,
