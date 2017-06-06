@@ -46,7 +46,7 @@ type Options struct {
 }
 
 type Op struct {
-	Id        string                 `json:"id"`
+	Id        interface{}            `json:"id"`
 	Operation string                 `json:"operation"`
 	Namespace string                 `json:"namespace"`
 	Data      map[string]interface{} `json:"data"`
