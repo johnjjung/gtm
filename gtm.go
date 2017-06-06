@@ -47,6 +47,7 @@ type Options struct {
 
 type Op struct {
 	Id        interface{}            `json:"_id"`
+	Guid      string                 `json:"id"`
 	Operation string                 `json:"operation"`
 	Namespace string                 `json:"namespace"`
 	Data      map[string]interface{} `json:"data"`
@@ -311,14 +312,14 @@ func OpLogCollectionName(session *mgo.Session, options *Options) string {
 		}
 		if col_name == nil {
 			msg := fmt.Sprintf(`
-				Unable to find oplog collection 
+				Unable to find oplog collection
 				in database %v`, *options.OpLogDatabaseName)
 			panic(msg)
 		} else {
 			return *col_name
 		}
 	} else {
-		msg := fmt.Sprintf(`Unable to get collection names 
+		msg := fmt.Sprintf(`Unable to get collection names
 		for database %v: %s`, *options.OpLogDatabaseName, err)
 		panic(msg)
 	}
